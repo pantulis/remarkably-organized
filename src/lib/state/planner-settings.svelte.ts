@@ -1,12 +1,4 @@
-import {
-	getFirstDayOfWeek,
-	getUTCDate,
-	objectDiff,
-	type Collection,
-	type CalendarEvent,
-	getWeek,
-} from '$lib';
-import { toast } from '$lib/components/toast.state.svelte';
+import { getFirstDayOfWeek, getUTCDate, objectDiff, getWeek } from '$lib';
 import type { PageTemplate } from './collection';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,46 +40,26 @@ export interface Timeframe {
 	/** The 1-indexed week from the start of the month */
 	weekSinceMonth?: number;
 
-	/** The 1-indexed day from the start of the year (1-365) */
-	daySinceYear?: number;
-
-	/** The 1-indexed week from the start of the month (1-31) */
-	daySinceMonth?: number;
-
-	/** The 1-indexed week from the start of the week (1-7) */
-	daySinceWeek?: number;
-
 	/** The year that this day's week should be considered a part of */
 	weekYear?: number;
 
 	/** The month that this day's week should be considered a part of */
 	weekMonth?: number;
 
-	/** The month that this day's week should be considered a part of */
+	/** The quarter that this day's week should be considered a part of */
 	weekQuarter?: number;
 }
 
 export interface Year
-	extends Omit<
-		Timeframe,
-		| 'quarter'
-		| 'month'
-		| 'weekSinceYear'
-		| 'weekSinceMonth'
-		| 'daySinceYear'
-		| 'daySinceMonth'
-		| 'daySinceWeek'
-	> {
+	extends Omit<Timeframe, 'quarter' | 'month' | 'weekSinceYear' | 'weekSinceMonth'> {
 	/** The year this timeframe references */
 	year: number;
 }
 
-export interface Quarter extends Year {
+export interface Month extends Year {
 	/** The 1-indexed quarter */
 	quarter: number;
-}
 
-export interface Month extends Quarter {
 	/** The 1-indexed month (January is '1') */
 	month: number;
 }
@@ -98,26 +70,6 @@ export interface Week extends Month {
 
 	/** The 1-indexed week from the start of the month */
 	weekSinceMonth: number;
-}
-
-export interface Day extends Week {
-	/** The 1-indexed day from the start of the year (1-365) */
-	daySinceYear: number;
-
-	/** The 1-indexed week from the start of the month (1-31) */
-	daySinceMonth: number;
-
-	/** The 1-indexed week from the start of the week (1-7) */
-	daySinceWeek: number;
-
-	/** The year that this day's week should be considered a part of */
-	weekYear: number;
-
-	/** The month that this day's week should be considered a part of */
-	weekMonth: number;
-
-	/** The month that this day's week should be considered a part of */
-	weekQuarter: number;
 }
 
 export class PlannerSettings {
@@ -135,12 +87,14 @@ export class PlannerSettings {
 		colorDots = $state('#454545');
 	})();
 
-	/** Settings for changing the dates of the planner (like start & end dates) */
+	/** Settings for changing the month covered by the planner */
 	readonly date = new (class DateSettings {
 		private defaultStart = new Date(
-			Date.UTC(new Date().getUTCFullYear() + (new Date().getUTCMonth() > 6 ? 1 : 0)),
+			Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1),
 		);
-		private defaultEnd = new Date(Date.UTC(this.defaultStart.getUTCFullYear() + 1, 0, 0));
+		private defaultEnd = new Date(
+			Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0),
+		);
 		timezoneOffset = $state(new Date().getTimezoneOffset() / 60);
 		start = $state(this.defaultStart);
 		end = $state(this.defaultEnd);
@@ -151,7 +105,6 @@ export class PlannerSettings {
 	/** Settings for changing the side navigation bar display */
 	readonly sideNav = new (class SideNavSettings {
 		disable = $state(false);
-		showCollectionLinks = $state(true);
 		width = $state(52);
 		leftSide = $state(true);
 		font = $state('Bebas Neue');
@@ -160,7 +113,6 @@ export class PlannerSettings {
 	/** Settings for changing the top navigation bar display */
 	readonly topNav = new (class TopNavSettings {
 		disable = $state(false);
-		showCollectionLinks = $state(true);
 		height = $state(45);
 		font = $state('Bebas Neue');
 	})();
@@ -171,104 +123,36 @@ export class PlannerSettings {
 		name = $state('');
 		email = $state('');
 		title = $state('');
-		showCollectionLinks = $state(true);
-		showCurrentDay = $state(false);
 		darkBackground = $state(true);
 		font = $state('Bebas Neue');
 	})();
 
-	/** Settings for changing how the year pages should work */
-	readonly yearPage = new (class YearPageSettings {
-		disable = $state(false);
-		notePagesTemplate = $state('notes-year' as PageTemplate);
-		notePagesAmount = $state(1);
-	})();
-
-	/** Settings for changing how the quarterly pages should work */
-	readonly quarterPage = new (class QuarterPageSettings {
-		disable = $state(false);
-		notePagesTemplate = $state('notes-quarter' as PageTemplate);
-		notePagesAmount = $state(1);
-	})();
-
-	/** Settings for changing how the monthly pages should work */
-	readonly monthPage = new (class MonthPageSettings {
-		disable = $state(false);
-		template = $state('calendar-month-with-notes' as PageTemplate);
-		notePagesTemplate = $state('dotted' as PageTemplate);
-		notePagesAmount = $state(2);
-	})();
-
-	/** Settings for changing how the weekly pages should work */
+	/** Settings for changing how the weekly meeting pages should work */
 	readonly weekPage = new (class WeekPageSettings {
-		disable = $state(false);
-		template = $state('agenda-week' as PageTemplate);
-		notePagesTemplate = $state('dotted' as PageTemplate);
-		notePagesAmount = $state(0);
-		useWeekSinceYear = $state(true);
+		/** The number of meetings listed on each week's index page */
+		meetingsPerWeek = $state(20);
+		/** The number of note pages generated for each meeting (incl. the summary) */
+		notePagesPerMeeting = $state(4);
+		/** The page template used for the note pages following each meeting summary */
+		notePagesTemplate = $state('lined' as PageTemplate);
+		/** Whether to show week numbers (rather than dates) in the side nav */
 		useWeekNumbersInSideNav = $state(false);
-		sideNavDisplay = $state(
-			'weeks-this-month' as
-				| 'days-this-week'
-				| 'days-this-month'
-				| 'days-this-year'
-				| 'weeks-this-year'
-				| 'weeks-this-month'
-				| 'months',
-		);
+		/** Whether week numbers should be counted from the start of the year */
+		useWeekSinceYear = $state(true);
 	})();
 
-	/** Settings for changing how the daily pages should work */
-	readonly dayPage = new (class DayPageSettings {
-		disable = $state(false);
-		template = $state('notes-day' as PageTemplate);
-		notePagesTemplate = $state('dotted' as PageTemplate);
-		notePagesAmount = $state(0);
-		sideNavDisplay = $state(
-			'days-this-week' as
-				| 'days-this-week'
-				| 'days-this-month'
-				| 'days-this-year'
-				| 'weeks-this-year'
-				| 'weeks-this-month'
-				| 'months',
-		);
+	/** Settings for the Task Index template */
+	readonly taskIndex = new (class TaskIndexSettings {
+		/** The total number of tasks to track for the month */
+		tasksPerMonth = $state(30);
+		/** The number of note pages generated for each task */
+		notePagesPerTask = $state(1);
+		/** The page template used for each task's note pages */
+		notePagesTemplate = $state('lined' as PageTemplate);
 	})();
-
-	/** The list of extra note/goals collections in addition to the planner pages */
-	collections = $state([
-		{
-			id: 'notes',
-			name: 'Notes',
-			total: 40,
-			type: 'dotted',
-			numIndexPages: 2,
-			numPagesPerItem: 1,
-		},
-		{
-			id: 'goals',
-			name: 'Goals',
-			total: 1,
-			type: 'habit-year-by-week',
-			numIndexPages: 0,
-			numPagesPerItem: 1,
-		},
-	] as Collection[]);
-
-	/** The list of extra note/goals collections in addition to the planner pages */
-	calendars = $state([
-		{
-			url: `https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics`,
-			events: [] as CalendarEvent[],
-			updating: false,
-			lastUpdated: 0,
-			name: 'Public Holidays',
-		},
-	]);
 
 	/** The computed list of years within the start/end timeframe in this.date */
 	readonly years = $derived(
-		// eslint-disable-next-line @typescript-eslint/no-array-constructor
 		Array.from(
 			{ length: this.date.end.getUTCFullYear() - this.date.start.getUTCFullYear() + 1 },
 			(_, i) => {
@@ -297,29 +181,6 @@ export class PlannerSettings {
 				} as Year;
 			},
 		),
-	);
-
-	/** The computed list of quarters within the start/end timeframe in this.date */
-	readonly quarters = $derived(
-		this.years.reduce((acc, year) => {
-			const startQuarter = Math.floor(year.start.getUTCMonth() / 3) + 1;
-			const endQuarter = Math.floor(year.end.getUTCMonth() / 3) + 1;
-			for (let quarter = startQuarter; quarter <= endQuarter; quarter++) {
-				const start = getUTCDate(year.start.getUTCFullYear(), (quarter - 1) * 3);
-				const end = getUTCDate(year.start.getUTCFullYear(), (quarter - 1) * 3 + 3, 0);
-				acc.push({
-					id: `${year.year}-q${quarter}`,
-					year: year.year,
-					quarter,
-					start,
-					end,
-					weekStart: new Date(getFirstDayOfWeek(start, this.date.startWeekOnSunday)),
-					nameShort: `Q${quarter}`,
-					nameLong: `Quarter ${quarter}`,
-				});
-			}
-			return acc;
-		}, [] as Quarter[]),
 	);
 
 	/** The computed list of months within the start/end timeframe in this.date */
@@ -380,58 +241,6 @@ export class PlannerSettings {
 		}, [] as Week[]),
 	);
 
-	/** The computed list of days within the start/end timeframe in this.date */
-	readonly days = $derived(
-		this.years.reduce((acc, year) => {
-			const firstDay = year.start.getTime();
-			const numDays = Math.floor((year.end.getTime() - firstDay) / 86400000) + 1;
-			for (let day = 1; day <= numDays; day++) {
-				const start = new Date(firstDay + (day - 1) * 86400000);
-				const month = start.getUTCMonth() + 1;
-				const quarter = Math.floor((month - 1) / 3) + 1;
-				const week = getWeek(start, this.date.startWeekOnSunday);
-				acc.push({
-					id: `${year.year}-${month}-${start.getUTCDate()}`,
-					year: year.year,
-					quarter,
-					month,
-					weekSinceYear: week.weekSinceYear,
-					weekSinceMonth: week.weekSinceMonth,
-					daySinceYear: (start.getTime() - year.start.getTime()) / 86400000 + 1,
-					daySinceMonth: start.getUTCDate(),
-					daySinceWeek:
-						((start.getUTCDay() - (this.date.startWeekOnSunday ? 0 : 1) + 7) % 7) + 1,
-					start,
-					end: start,
-					weekStart: start,
-					weekYear: week.year,
-					weekMonth: week.month,
-					weekQuarter: week.quarter,
-					nameShort: start.toLocaleDateString('default', {
-						timeZone: 'UTC',
-						month: 'short',
-						day: 'numeric',
-					}),
-					nameLong: start.toLocaleDateString('default', {
-						timeZone: 'UTC',
-						month: 'long',
-						weekday: 'short',
-						day: 'numeric',
-					}),
-				});
-			}
-			return acc;
-		}, [] as Day[]),
-	);
-
-	/** The list of events imported from the calendars ics urls */
-	events = $derived(
-		this.calendars
-			.map((calendar) => [...calendar.events])
-			.flat()
-			.sort((a, b) => a.start - b.start),
-	);
-
 	/** A computed diff object of the settings that have been changed by the user */
 	readonly edits = $derived(
 		!this.initialSettings
@@ -450,38 +259,6 @@ export class PlannerSettings {
 	) {
 		this.initialSettings = this.serialize();
 		this.deserialize(initialState);
-	}
-
-	/** Starts importing the events for the calendar at the given index */
-	async importEvents(calendarIndex: number) {
-		if (!this.calendars[calendarIndex]) return;
-		const calendar = this.calendars[calendarIndex];
-		if (calendar.updating) return;
-		if (!calendar.url) {
-			toast.error(`Calendar URL not provided`);
-			return;
-		}
-		calendar.updating = true;
-		const searchParams = new URLSearchParams({
-			start: `${this.date.start.getTime()}`,
-			end: `${this.date.end.getTime()}`,
-			url: calendar.url,
-		});
-		const response = await fetch(`/api/calendar?${searchParams.toString()}`);
-		if (!response.ok) {
-			toast.error(`Couldn't fetch calendar events. Unkonwn error.`);
-			calendar.updating = false;
-			return;
-		}
-		const { events } = await response.json();
-		if (!events?.length) {
-			toast(`Fetched calendar, but couldn't find any events`);
-		} else {
-			toast(`Successfully imported ${events.length} events!`);
-			calendar.events = events;
-		}
-		calendar.updating = false;
-		calendar.lastUpdated = Date.now();
 	}
 
 	/** Serializes the data into a valid JSON format */
@@ -505,68 +282,35 @@ export class PlannerSettings {
 			},
 			sideNav: {
 				disable: this.sideNav.disable,
-				showCollectionLinks: this.sideNav.showCollectionLinks,
 				width: this.sideNav.width,
 				leftSide: this.sideNav.leftSide,
 				font: this.sideNav.font,
 			},
 			topNav: {
 				disable: this.topNav.disable,
-				showCollectionLinks: this.topNav.showCollectionLinks,
 				height: this.topNav.height,
 				font: this.topNav.font,
 			},
 			coverPage: {
 				disable: this.coverPage.disable,
 				title: this.coverPage.title,
-				showCollectionLinks: this.coverPage.showCollectionLinks,
+				name: this.coverPage.name,
+				email: this.coverPage.email,
 				darkBackground: this.coverPage.darkBackground,
-				showCurrentDay: this.coverPage.showCurrentDay,
 				font: this.coverPage.font,
 			},
-			yearPage: {
-				disable: this.yearPage.disable,
-				notePagesTemplate: this.yearPage.notePagesTemplate,
-				notePagesAmount: this.yearPage.notePagesAmount,
-			},
-			quarterPage: {
-				disable: this.quarterPage.disable,
-				notePagesTemplate: this.quarterPage.notePagesTemplate,
-				notePagesAmount: this.quarterPage.notePagesAmount,
-			},
-			monthPage: {
-				disable: this.monthPage.disable,
-				template: this.monthPage.template,
-				notePagesTemplate: this.monthPage.notePagesTemplate,
-				notePagesAmount: this.monthPage.notePagesAmount,
-			},
 			weekPage: {
-				disable: this.weekPage.disable,
+				meetingsPerWeek: this.weekPage.meetingsPerWeek,
+				notePagesPerMeeting: this.weekPage.notePagesPerMeeting,
 				notePagesTemplate: this.weekPage.notePagesTemplate,
-				notePagesAmount: this.weekPage.notePagesAmount,
-				useWeekSinceYear: this.weekPage.useWeekSinceYear,
 				useWeekNumbersInSideNav: this.weekPage.useWeekNumbersInSideNav,
-				sideNavDisplay: this.weekPage.sideNavDisplay,
-				template: this.weekPage.template,
+				useWeekSinceYear: this.weekPage.useWeekSinceYear,
 			},
-			dayPage: {
-				disable: this.dayPage.disable,
-				notePagesTemplate: this.dayPage.notePagesTemplate,
-				notePagesAmount: this.dayPage.notePagesAmount,
-				sideNavDisplay: this.dayPage.sideNavDisplay,
-				template: this.dayPage.template,
+			taskIndex: {
+				tasksPerMonth: this.taskIndex.tasksPerMonth,
+				notePagesPerTask: this.taskIndex.notePagesPerTask,
+				notePagesTemplate: this.taskIndex.notePagesTemplate,
 			},
-			collections: this.collections.map((collection) => ({
-				...collection,
-			})),
-			calendars: this.calendars.map((calendar) => {
-				return {
-					events: calendar.events,
-					url: calendar.url,
-					lastUpdated: calendar.lastUpdated,
-					name: calendar.name,
-				};
-			}),
 		};
 	}
 
@@ -600,8 +344,6 @@ export class PlannerSettings {
 		// Side Nav Settings
 		if (state?.sideNav?.disable !== undefined)
 			this.sideNav.disable = state.sideNav.disable;
-		if (state?.sideNav?.showCollectionLinks !== undefined)
-			this.sideNav.showCollectionLinks = state.sideNav.showCollectionLinks;
 		if (state?.sideNav?.width !== undefined) this.sideNav.width = state.sideNav.width;
 		if (state?.sideNav?.leftSide !== undefined)
 			this.sideNav.leftSide = state.sideNav.leftSide;
@@ -611,8 +353,6 @@ export class PlannerSettings {
 
 		// Top Nav Settings
 		if (state?.topNav?.disable !== undefined) this.topNav.disable = state.topNav.disable;
-		if (state?.topNav?.showCollectionLinks !== undefined)
-			this.topNav.showCollectionLinks = state.topNav.showCollectionLinks;
 		if (state?.topNav?.height !== undefined) this.topNav.height = state.topNav.height;
 		if (state?.topNav?.font !== undefined) this.topNav.font = state.topNav.font;
 		if (!state?.topNav?.font && state?.design?.fontDisplay)
@@ -623,97 +363,33 @@ export class PlannerSettings {
 			this.coverPage.disable = state.coverPage.disable;
 		if (state?.coverPage?.title !== undefined)
 			this.coverPage.title = state.coverPage.title;
-		if (state?.coverPage?.showCollectionLinks !== undefined)
-			this.coverPage.showCollectionLinks = state.coverPage.showCollectionLinks;
+		if (state?.coverPage?.name !== undefined) this.coverPage.name = state.coverPage.name;
+		if (state?.coverPage?.email !== undefined)
+			this.coverPage.email = state.coverPage.email;
 		if (state?.coverPage?.darkBackground !== undefined)
 			this.coverPage.darkBackground = state.coverPage.darkBackground;
-		if (state?.coverPage?.showCurrentDay !== undefined)
-			this.coverPage.showCurrentDay = state.coverPage.showCurrentDay;
 		if (state?.coverPage?.font !== undefined) this.coverPage.font = state.coverPage.font;
 		if (!state?.coverPage?.font && state?.design?.fontDisplay)
 			this.coverPage.font = state.design.fontDisplay;
 
-		// Year Page Settings
-		if (state?.yearPage?.disable !== undefined)
-			this.yearPage.disable = state.yearPage.disable;
-		if (state?.yearPage?.notePagesTemplate !== undefined)
-			this.yearPage.notePagesTemplate = state.yearPage.notePagesTemplate;
-		if (state?.yearPage?.notePagesAmount !== undefined)
-			this.yearPage.notePagesAmount = state.yearPage.notePagesAmount;
-
-		// Quarter Page Settings
-		if (state?.quarterPage?.disable !== undefined)
-			this.quarterPage.disable = state.quarterPage.disable;
-		if (state?.quarterPage?.notePagesTemplate !== undefined)
-			this.quarterPage.notePagesTemplate = state.quarterPage.notePagesTemplate;
-		if (state?.quarterPage?.notePagesAmount !== undefined)
-			this.quarterPage.notePagesAmount = state.quarterPage.notePagesAmount;
-
-		// Month Page Settings
-		if (state?.monthPage?.disable !== undefined)
-			this.monthPage.disable = state.monthPage.disable;
-		if (state?.monthPage?.notePagesTemplate !== undefined)
-			this.monthPage.notePagesTemplate = state.monthPage.notePagesTemplate;
-		if (state?.monthPage?.notePagesAmount !== undefined)
-			this.monthPage.notePagesAmount = state.monthPage.notePagesAmount;
-		if (state?.monthPage?.template !== undefined)
-			this.monthPage.template = state.monthPage.template;
-
 		// Week Page Settings
-		if (state?.weekPage?.disable !== undefined)
-			this.weekPage.disable = state.weekPage.disable;
+		if (state?.weekPage?.meetingsPerWeek !== undefined)
+			this.weekPage.meetingsPerWeek = state.weekPage.meetingsPerWeek;
+		if (state?.weekPage?.notePagesPerMeeting !== undefined)
+			this.weekPage.notePagesPerMeeting = state.weekPage.notePagesPerMeeting;
 		if (state?.weekPage?.notePagesTemplate !== undefined)
 			this.weekPage.notePagesTemplate = state.weekPage.notePagesTemplate;
-		if (state?.weekPage?.notePagesAmount !== undefined)
-			this.weekPage.notePagesAmount = state.weekPage.notePagesAmount;
-		if (state?.weekPage?.useWeekSinceYear !== undefined)
-			this.weekPage.useWeekSinceYear = state.weekPage.useWeekSinceYear;
 		if (state?.weekPage?.useWeekNumbersInSideNav !== undefined)
 			this.weekPage.useWeekNumbersInSideNav = state.weekPage.useWeekNumbersInSideNav;
-		if (state?.weekPage?.template !== undefined)
-			this.weekPage.template = state.weekPage.template;
-		if (state?.weekPage?.sideNavDisplay !== undefined)
-			this.weekPage.sideNavDisplay = state.weekPage.sideNavDisplay;
+		if (state?.weekPage?.useWeekSinceYear !== undefined)
+			this.weekPage.useWeekSinceYear = state.weekPage.useWeekSinceYear;
 
-		// Day Page Settings
-		if (state?.dayPage?.disable !== undefined)
-			this.dayPage.disable = state.dayPage.disable;
-		if (state?.dayPage?.notePagesTemplate !== undefined)
-			this.dayPage.notePagesTemplate = state.dayPage.notePagesTemplate;
-		if (state?.dayPage?.notePagesAmount !== undefined)
-			this.dayPage.notePagesAmount = state.dayPage.notePagesAmount;
-		if (state?.dayPage?.sideNavDisplay !== undefined)
-			this.dayPage.sideNavDisplay = state.dayPage.sideNavDisplay;
-		if (state?.dayPage?.template !== undefined)
-			this.dayPage.template = state.dayPage.template;
-
-		// Calendars
-		if (state?.calendars !== undefined) {
-			this.calendars = state.calendars.filter(Boolean).map((calendar) => ({
-				name: calendar?.name || ``,
-				url: calendar?.url || '',
-				events: (calendar?.events || []).filter(Boolean).map((event) => ({
-					name: event?.name || 'Event',
-					start: event?.start || 0,
-					duration: event?.duration,
-				})),
-				lastUpdated: calendar?.lastUpdated || 0,
-				updating: false,
-			}));
-		}
-
-		// Collections
-		if (state?.collections !== undefined) {
-			this.collections = state.collections.filter(Boolean).map((collection, i) => ({
-				id: collection?.id || `${i}`,
-				name: collection?.name || `Collection ${i}`,
-				type: collection?.type || 'blank',
-				total: collection?.total ?? 20,
-				columns: collection?.columns || 1,
-				lines: collection?.lines,
-				numIndexPages: collection?.numIndexPages ?? 1,
-				numPagesPerItem: collection?.numPagesPerItem ?? 1,
-			}));
-		}
+		// Task Index Settings
+		if (state?.taskIndex?.tasksPerMonth !== undefined)
+			this.taskIndex.tasksPerMonth = state.taskIndex.tasksPerMonth;
+		if (state?.taskIndex?.notePagesPerTask !== undefined)
+			this.taskIndex.notePagesPerTask = state.taskIndex.notePagesPerTask;
+		if (state?.taskIndex?.notePagesTemplate !== undefined)
+			this.taskIndex.notePagesTemplate = state.taskIndex.notePagesTemplate;
 	}
 }

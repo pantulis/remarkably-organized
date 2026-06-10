@@ -2,21 +2,12 @@
 	import { intersect, type PlannerSettings } from '$lib';
 	import { getFontInfo } from '../fonts/fonts';
 
-	let { settings = {} as PlannerSettings } = $props();
+	let { settings = {} as PlannerSettings, plannerLink = '' as string } = $props();
 
-	const plannerLink = $derived(
-		!settings.yearPage.disable
-			? `#${settings.years[0].id}`
-			: !settings.quarterPage.disable
-				? `#${settings.quarters[0].id}`
-				: !settings.monthPage.disable
-					? `#${settings.months[0].id}`
-					: !settings.weekPage.disable
-						? `#${settings.weeks[0].id}`
-						: !settings.dayPage.disable
-							? `#${settings.days[0].id}`
-							: '',
+	const monthName = $derived(
+		settings.date.start.toLocaleString('default', { month: 'long', timeZone: 'UTC' }),
 	);
+	const year = $derived(settings.date.start.getUTCFullYear());
 </script>
 
 <article
@@ -31,96 +22,18 @@
 				style:font-weight={getFontInfo(settings.coverPage.font)?.boldWeight || 400}>
 				{settings.coverPage.title}
 			</h1>
-		{:else if settings.years.length > 1}
-			<h1
-				class="multi-year"
-				style:font-family="'{settings.coverPage.font}'"
-				style:font-size="{(getFontInfo(settings.coverPage.font)?.size || 1) * 7}rem"
-				style:font-weight={getFontInfo(settings.coverPage.font)?.boldWeight || 400}>
-				<div class="start">
-					<small>
-						{settings.years[0].start.toLocaleString('default', {
-							month: 'long',
-							timeZone: 'UTC',
-						})}
-					</small>
-					{settings.years[0].year}
-				</div>
-				<div class="separator">-</div>
-				<div class="end">
-					<small>
-						{settings.years[settings.years.length - 1].end.toLocaleString('default', {
-							month: 'long',
-							timeZone: 'UTC',
-						})}
-					</small>
-					{settings.years[settings.years.length - 1].year}
-				</div>
-			</h1>
 		{:else}
 			<h1
 				style:font-family="'{settings.coverPage.font}'"
-				style:font-size="{(getFontInfo(settings.coverPage.font)?.size || 1) * 12}rem"
+				style:font-size="{(getFontInfo(settings.coverPage.font)?.size || 1) * 7}rem"
 				style:font-weight={getFontInfo(settings.coverPage.font)?.boldWeight || 400}>
-				{settings.years[0].year}
+				<small>{monthName}</small>
+				{year}
 			</h1>
 		{/if}
-		{#if settings.date.today && settings.coverPage.showCurrentDay}
-			{@const quarter = Math.floor(settings.date.today.getUTCMonth() / 3) + 1}
-			{@const monthName = settings.date.today.toLocaleString('default', {
-				month: 'long',
-				timeZone: 'UTC',
-			})}
-			{@const dayName = settings.date.today.toLocaleString('default', {
-				weekday: 'long',
-				timeZone: 'UTC',
-			})}
-			{@const currentWeek = Math.ceil(settings.date.today.getUTCDate() / 7)}
-			{@const dateOrdinal =
-				settings.date.today.getUTCDate() > 0
-					? ['th', 'st', 'nd', 'rd'][
-							(settings.date.today.getUTCDate() > 3 &&
-								settings.date.today.getUTCDate() < 21) ||
-							settings.date.today.getUTCDate() > 23
-								? 0
-								: settings.date.today.getUTCDate() % 10
-						]
-					: ''}
-			<div class="actions">
-				<a href="#{settings.date.today.getUTCFullYear()}">
-					{settings.date.today.getUTCFullYear()}
-				</a>
-				<a href="#{settings.date.today.getUTCFullYear()}-q{quarter}">Q{quarter}</a>
-				<a
-					href="#{settings.date.today.getUTCFullYear()}-{settings.date.today.getUTCMonth() +
-						1}">
-					{monthName}
-				</a>
-				<a
-					href="#{settings.date.today.getUTCFullYear()}-{settings.date.today.getUTCMonth() +
-						1}-w{currentWeek}">
-					{dayName}
-				</a>
-				<a
-					href="#{settings.date.today.getUTCFullYear()}-{settings.date.today.getUTCMonth() +
-						1}-{settings.date.today.getUTCDate()}">
-					{settings.date.today.getUTCDate()}
-					<small>{dateOrdinal}</small>
-				</a>
-			</div>
-		{/if}
-		{#if settings.collections?.length && settings.coverPage.showCollectionLinks}
+		{#if plannerLink}
 			<div class="links">
-				{#if plannerLink}<a href={plannerLink}>Planner</a>{/if}
-				{#if plannerLink && settings.collections.length}
-					<span class="separator">/</span>
-				{/if}
-				{#each settings.collections as collection, i (collection.id)}
-					<a href="#{collection.id}">{collection.name}</a>
-					{#if i !== settings.collections.length - 1}
-						<span class="separator">/</span>
-					{/if}
-				{/each}
+				<a href={plannerLink}>Open Planner</a>
 			</div>
 		{/if}
 	</header>
@@ -138,6 +51,7 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
+		align-items: center;
 		width: 100%;
 		padding: 0 0 2rem 0;
 	}
@@ -152,30 +66,8 @@
 			h1 {
 				color: white;
 			}
-			.actions a {
-				background-color: #222;
-				color: #ccc;
-			}
 			.links a {
 				color: #ccc;
-			}
-		}
-	}
-	.actions {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		a {
-			display: flex;
-			padding: 0.5rem 0.75rem;
-			border-radius: 10px;
-			background-color: #eee;
-			color: #333;
-			text-decoration: none;
-			gap: 0.05rem;
-			small {
-				color: currentColor;
 			}
 		}
 	}
@@ -190,10 +82,8 @@
 			display: flex;
 			border-radius: 10px;
 			text-decoration: none;
-			gap: 0 0.05rem;
 			padding: 1rem 0.75rem;
 			font-weight: var(--font-weight-bold);
-			margin: -0.5rem 0;
 			font-size: 1.5em;
 		}
 	}
@@ -203,24 +93,12 @@
 		margin: 0;
 		padding: 0 2rem;
 		text-wrap: balance;
-		&.multi-year {
-			display: flex;
-			align-items: end;
-			margin-bottom: 0.5rem;
-			justify-content: center;
-			.separator {
-				font-size: 5rem;
-				margin: 0 0.5rem;
-			}
-			.start,
-			.end {
-				display: flex;
-				flex-direction: column;
-			}
-			small {
-				line-height: 100%;
-				font-size: 0.25em;
-			}
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		small {
+			line-height: 100%;
+			font-size: 0.35em;
 		}
 	}
 	footer {

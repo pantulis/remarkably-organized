@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { fade, scale } from 'svelte/transition';
+	import type { Snippet } from 'svelte';
 
-	let { onClose = (() => {}) as () => void } = $props();
+	let {
+		title = 'How to Use' as string,
+		onClose = (() => {}) as () => void,
+		children = undefined as Snippet | undefined,
+	} = $props();
 
 	function handleKeyup(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
@@ -14,22 +19,8 @@
 
 <div class="help-modal">
 	<div class="help" transition:scale={{ duration: 150 }}>
-		<h2>How to Use Planner Generator</h2>
-		<p>
-			Use the settings panel to customize the planner to your liking. The preview of the
-			planner will be updated live. The URL of the page will also be updated. You can
-			share this URL with others to show them your planner.
-		</p>
-		<p>
-			You can change the start and end dates of the planner. For example, you can create a
-			planner that starts in August 2025 and ends in July 2026.
-		</p>
-		<p>
-			You can also add "collections" to the planner. Think of a collection as a group of
-			note pages with an index page for easy navigation. By default there is a collection
-			called "Notes" and "Goals". You can add more collections of different designs - like
-			lined pages, dotted pages, etc.
-		</p>
+		<h2>{title}</h2>
+		{@render children?.()}
 		<p>
 			When you are ready to download the planner as a PDF, use the built in Chrome print
 			dialog. Make sure to select "Save as PDF" as the destination.
@@ -74,7 +65,8 @@
 				margin: 0 0 1rem;
 				font-size: 2em;
 			}
-			p {
+			// Global so paragraphs supplied by the per-template help bodies are styled.
+			:global(p) {
 				margin: 0.5rem 0;
 			}
 			.actions {

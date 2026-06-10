@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Collection } from '$lib';
+	import type { PageTemplate } from '$lib';
 
 	let {
-		display = 'dotted' as Collection['type'],
+		display = 'dotted' as PageTemplate,
 		columns = undefined as number | undefined,
 		lines = undefined as number | undefined,
 		majorSize = 10,
@@ -25,7 +25,13 @@
 		display.endsWith('large') ? 'large' : display.endsWith('small') ? 'small' : 'medium',
 	);
 	const cols = $derived(
-		type === 'lined' ? columns ?? 1 : size === 'small' ? 30 : size === 'medium' ? 25 : 20,
+		type === 'lined'
+			? (columns ?? 1)
+			: size === 'small'
+				? 30
+				: size === 'medium'
+					? 25
+					: 20,
 	);
 	const numLines = $derived(
 		lines ?? (size === 'small' ? 40 : size === 'medium' ? 35 : 30),

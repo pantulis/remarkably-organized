@@ -1,56 +1,12 @@
 <script lang="ts">
-	import { formatToString, PlannerSettings, type Timeframe } from '$lib';
+	import { PlannerSettings } from '$lib';
 	import HomeIcon from '~icons/material-symbols-light/home-rounded';
 	import { getFontInfo } from '../fonts/fonts';
 
 	let {
-		timeframe = {} as Timeframe,
 		settings = {} as PlannerSettings,
 		breadcrumbs = [] as { name: string; href: string }[],
 	} = $props();
-
-	const showYearBreadcrumb = $derived(!settings.yearPage.disable && timeframe.year);
-	const showQuarterBreadcrumb = $derived(
-		!settings.quarterPage.disable && timeframe.year && timeframe.quarter,
-	);
-	const showMonthBreadcrumb = $derived(
-		!settings.monthPage.disable && timeframe.year && timeframe.month,
-	);
-	const showWeekBreadcrumb = $derived(
-		!settings.weekPage.disable &&
-			timeframe.year &&
-			timeframe.month &&
-			timeframe.weekSinceYear,
-	);
-	const showDayBreadcrumb = $derived(
-		!settings.dayPage.disable &&
-			timeframe.year &&
-			timeframe.month &&
-			timeframe.daySinceMonth,
-	);
-	const isFinalMonth = $derived(
-		settings.months.findIndex(
-			(m) =>
-				m.year === timeframe.start.getUTCFullYear() &&
-				m.month === timeframe.start.getUTCMonth() + 1,
-		) ===
-			settings.months.length - 1,
-	);
-	const isFinalWeek = $derived(
-		settings.weeks.findIndex((m) => m.start.getTime() === timeframe.start.getTime()) ===
-			settings.months.length - 1,
-	);
-	const year = $derived(
-		isFinalMonth || isFinalWeek || !timeframe.year
-			? timeframe.start.getUTCFullYear()
-			: timeframe.year,
-	);
-	const month = $derived(
-		isFinalMonth || isFinalWeek || !timeframe.month
-			? timeframe.start.getUTCMonth() + 1
-			: timeframe.month,
-	);
-	const quarter = $derived(Math.floor((month - 1) / 3) + 1);
 
 	const font = $derived(settings.topNav.font);
 	const homeIconAdjustments = new Map([
@@ -110,86 +66,11 @@
 							: null} />
 				</a>
 			</li>
-			{#if showYearBreadcrumb}
-				<li><a href="#{year}">{year}</a></li>
-			{/if}
-			{#if showQuarterBreadcrumb}
-				<li>
-					<a href="#{year}-q{quarter}">
-						{!showWeekBreadcrumb && !showMonthBreadcrumb && !showDayBreadcrumb
-							? 'Quarter '
-							: 'Q'}{quarter}
-					</a>
-				</li>
-			{/if}
-			{#if showMonthBreadcrumb}
-				<li>
-					<a href="#{year}-{month}">
-						{new Date(year, month - 1).toLocaleString('default', {
-							month: !showWeekBreadcrumb && !showDayBreadcrumb ? 'long' : 'short',
-						})}
-					</a>
-				</li>
-			{/if}
-			{#if showWeekBreadcrumb}
-				<li>
-					<a href="#{timeframe.weekYear}-wk{timeframe.weekSinceYear}">
-						{#if settings.weekPage.useWeekSinceYear}
-							{#if (!showYearBreadcrumb && !showMonthBreadcrumb) || (timeframe.weekYear && timeframe.weekYear !== year) || timeframe.year !== year}
-								{timeframe.weekYear || timeframe.year || year}
-							{/if}
-						{:else if !showMonthBreadcrumb || (timeframe.weekMonth && timeframe.weekYear && timeframe.weekMonth !== timeframe.month) || timeframe.month !== month}
-							{new Date(
-								timeframe.weekYear || timeframe.year!,
-								(timeframe.weekMonth || timeframe.month!) - 1,
-							).toLocaleString('default', {
-								month:
-									!showDayBreadcrumb &&
-									(!timeframe.weekMonth || timeframe.weekMonth === timeframe.month) &&
-									(!showMonthBreadcrumb || timeframe.month === month)
-										? 'long'
-										: 'short',
-							})}
-						{/if}
-						{#if !showDayBreadcrumb}Week{:else}WK{/if}
-						{settings.weekPage.useWeekSinceYear
-							? timeframe.weekSinceYear
-							: timeframe.weekSinceMonth}
-					</a>
-				</li>
-			{/if}
-			{#if showDayBreadcrumb}
-				<li>
-					<a href="#{timeframe.year}-{timeframe.month}-{timeframe.daySinceMonth}">
-						{timeframe.start.toLocaleString('default', {
-							weekday: 'short',
-							timeZone: 'UTC',
-						})},
-						{timeframe.start.toLocaleString('default', {
-							month: !breadcrumbs.length ? 'long' : 'short',
-							timeZone: 'UTC',
-						})}
-						{@html formatToString(timeframe.daySinceMonth, {
-							type: 'ordinal',
-							html: true,
-						})}
-					</a>
-				</li>
-			{/if}
-			{#if breadcrumbs?.length}
-				{#each breadcrumbs as breadcrumb (breadcrumb.href)}
-					<li><a href={breadcrumb.href}>{breadcrumb.name}</a></li>
-				{/each}
-			{/if}
+			{#each breadcrumbs as breadcrumb (breadcrumb.href)}
+				<li><a href={breadcrumb.href}>{breadcrumb.name}</a></li>
+			{/each}
 		</ol>
 		<div style="flex: 1"></div>
-		{#if settings.topNav.showCollectionLinks && settings.collections?.length}
-			<ol class="links">
-				{#each settings.collections as collection, i (collection.id)}
-					<li><a href="#{collection.id}">{collection.name}</a></li>
-				{/each}
-			</ol>
-		{/if}
 	</nav>
 {/if}
 
@@ -206,41 +87,6 @@
 		right: 0;
 		height: var(--topnav-height);
 		padding: 0 0 0 var(--sidenav-width);
-		ol.links {
-			list-style: none;
-			list-style: none;
-			padding: 0;
-			margin: 0;
-			display: flex;
-			height: 100%;
-			li {
-				display: flex;
-				align-items: center;
-				height: 100%;
-				&:not(:last-child)::after {
-					content: '/';
-					color: var(--text-low);
-					font-size: 0.85em;
-				}
-				&:last-child {
-					padding-right: 0.75rem;
-				}
-			}
-			a {
-				font-size: 1em;
-				color: var(--text-low);
-				padding: 0 0.25rem;
-				line-height: 1;
-				:global(svg) {
-					font-size: 0.85em;
-				}
-				:global(.ordinal) {
-					color: currentColor;
-					font-size: 0.75em;
-					vertical-align: top;
-				}
-			}
-		}
 
 		ol.breadcrumbs {
 			list-style: none;
@@ -267,7 +113,6 @@
 				&:last-child {
 					a {
 						color: var(--text-high);
-						// font-size: 1.1em;
 					}
 				}
 			}
@@ -284,11 +129,6 @@
 				}
 				:global(svg) {
 					font-size: 1em;
-				}
-				:global(.ordinal) {
-					color: currentColor;
-					font-size: 0.75em;
-					vertical-align: top;
 				}
 			}
 		}
