@@ -80,6 +80,10 @@ pnpm run format   # prettier
 
 ## Deployment
 
+A live version is deployed on Vercel at:
+
+**<https://remarkable-weekly-meeting-notes.vercel.app>**
+
 Configured for **Vercel** via `@sveltejs/adapter-vercel` (functions pinned to the
 `nodejs20.x` runtime in `svelte.config.js`). Deploy with the Vercel CLI:
 
